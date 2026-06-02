@@ -1,0 +1,3 @@
+# Optional — only required for live data mode (--live).
+# The CLI and dashboard work without this when using a local JSON file.
+yfinance>=0.2.40

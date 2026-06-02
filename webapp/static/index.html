@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stock Valuation Dashboard</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">SV</div>
+      <div>
+        <h1>Stock Valuation</h1>
+        <p class="tagline">Indian listed companies — multi-model analysis</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="upload">Upload Data</button>
+      <button class="tab" data-tab="browse">Browse</button>
+      <button class="tab" data-tab="top">Top Picks</button>
+      <button class="tab" data-tab="compare">Compare</button>
+      <button class="tab" data-tab="about">How It Works</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ================= UPLOAD ================= -->
+    <section id="tab-upload" class="view active">
+      <div class="upload-hero">
+        <h2>Get Started</h2>
+        <p class="sub">Choose one of two options below to load your data.</p>
+
+        <!-- ========== OPTION A: One-click fetch ========== -->
+        <div class="option-card highlight">
+          <div class="option-badge">Recommended</div>
+          <h3>Option A: Auto-Fetch from Yahoo Finance</h3>
+          <p>Pull live data for Indian stocks. Choose your universe size.</p>
+          <div class="fetch-controls">
+            <label class="fetch-label">
+              Stocks to fetch
+              <select id="fetch-limit">
+                <option value="10">10</option>
+                <option value="50" selected>50 (NIFTY 50)</option>
+                <option value="100">100 (NIFTY 100)</option>
+                <option value="200">200</option>
+                <option value="500">500 (NIFTY 500)</option>
+                <option value="1000">1000 (Full NSE)</option>
+              </select>
+            </label>
+            <button id="btn-fetch" class="btn primary btn-lg">Fetch Data</button>
+          </div>
+          <div id="fetch-progress" class="fetch-progress hidden">
+            <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+            <span id="progress-text" class="progress-text">Starting...</span>
+          </div>
+        </div>
+
+        <!-- ========== OR separator ========== -->
+        <div class="or-divider"><span>OR</span></div>
+
+        <!-- ========== OPTION B: CSV upload ========== -->
+        <div class="option-card">
+          <h3>Option B: Upload Your Own CSV</h3>
+          <p>For custom stocks or data from any source.</p>
+          <div class="mini-steps">
+            <span class="mini-step">
+              <strong>1.</strong>
+              <button id="btn-download" class="btn secondary btn-sm">Download Template</button>
+            </span>
+            <span class="mini-arrow">&rarr;</span>
+            <span class="mini-step"><strong>2.</strong> Fill in Excel / Sheets</span>
+            <span class="mini-arrow">&rarr;</span>
+            <span class="mini-step"><strong>3.</strong> Upload below</span>
+          </div>
+          <div id="drop-zone" class="drop-zone">
+            <div class="drop-icon">&#128196;</div>
+            <p>Drag & drop your CSV file here</p>
+            <p class="or">or</p>
+            <label class="btn secondary btn-sm">
+              Choose File
+              <input type="file" id="file-input" accept=".csv" hidden />
+            </label>
+            <p id="drop-hint" class="drop-hint"></p>
+          </div>
+          <div class="fields-hint">
+            <strong>Required columns:</strong> name, symbol, current_price, pe_ratio, pb_ratio, roe, growth_rate, equity<br/>
+            <strong>Optional:</strong> sector, revenue, profit, debt, cash_flow, shares_outstanding
+          </div>
+        </div>
+
+        <!-- ========== Status (shown after fetch or upload) ========== -->
+        <div id="upload-status" class="upload-status hidden">
+          <div class="status-icon">&#9989;</div>
+          <div class="status-text">
+            <strong id="status-count"></strong>
+            <span id="status-errors"></span>
+          </div>
+          <button id="btn-view-results" class="btn primary">View Results &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BROWSE ================= -->
+    <section id="tab-browse" class="view">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search by name, symbol or sector..." />
+        <span id="browse-count" class="count"></span>
+      </div>
+
+      <!-- Filter row -->
+      <div id="browse-filters" class="filter-row hidden">
+        <div class="filter-field reco-field">
+          <span>Recommendation <small class="filter-hint">(click to toggle)</small></span>
+          <div id="filter-reco" class="reco-pills" role="group" aria-label="Recommendation filter">
+            <button type="button" class="reco-pill buy-strong" data-reco="Strong Buy">Strong Buy</button>
+            <button type="button" class="reco-pill buy" data-reco="Buy">Buy</button>
+            <button type="button" class="reco-pill hold" data-reco="Hold">Hold</button>
+            <button type="button" class="reco-pill avoid" data-reco="Avoid">Avoid</button>
+            <button type="button" class="reco-pill filtered" data-reco="Filtered">Filtered</button>
+          </div>
+        </div>
+        <label class="filter-field">
+          <span>Sector</span>
+          <select id="filter-sector">
+            <option value="">All</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Score</span>
+          <span class="range-inputs">
+            <input id="filter-score-min" type="number" placeholder="min" min="0" max="100" />
+            <span class="range-dash">–</span>
+            <input id="filter-score-max" type="number" placeholder="max" min="0" max="100" />
+          </span>
+        </label>
+        <label class="filter-field">
+          <span>Valuation</span>
+          <select id="filter-gap">
+            <option value="">All</option>
+            <option value="under">Undervalued (gap &gt; 0)</option>
+            <option value="over">Overvalued (gap &lt; 0)</option>
+            <option value="strong-under">Strongly under (&gt;25%)</option>
+            <option value="strong-over">Strongly over (&lt;-25%)</option>
+          </select>
+        </label>
+        <button id="filter-reset" class="btn ghost btn-sm">Reset</button>
+        <div class="export-group">
+          <button id="export-selected" class="btn secondary btn-sm" disabled>Export Selected</button>
+          <button id="export-filtered" class="btn primary btn-sm">Export Filtered (CSV)</button>
+        </div>
+      </div>
+
+      <div id="browse-empty" class="empty">Upload your CSV file first to see results here.</div>
+      <div id="browse-table-wrap" class="table-wrap hidden">
+        <table id="browse-table">
+          <thead>
+            <tr>
+              <th class="check-col"><input id="check-all" type="checkbox" /></th>
+              <th data-sort="symbol">Symbol</th>
+              <th data-sort="name">Name</th>
+              <th data-sort="sector">Sector</th>
+              <th data-sort="price" class="num">Price</th>
+              <th data-sort="score" class="num">Score</th>
+              <th data-sort="gap" class="num">Gap %</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= TOP PICKS ================= -->
+    <section id="tab-top" class="view">
+      <div class="toolbar">
+        <label class="inline">
+          Show top
+          <select id="top-n">
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50" selected>All</option>
+          </select>
+        </label>
+        <button id="top-refresh" class="btn">Refresh</button>
+      </div>
+      <div id="top-cards" class="card-grid">
+        <div class="empty">Upload your CSV file first to see top picks here.</div>
+      </div>
+    </section>
+
+    <!-- ================= COMPARE ================= -->
+    <section id="tab-compare" class="view">
+      <div class="toolbar">
+        <input id="compare-input" type="text" placeholder="Type a symbol and press Enter (e.g. INFY)" />
+        <div id="compare-chips" class="chips"></div>
+        <button id="compare-clear" class="btn ghost">Clear</button>
+      </div>
+      <div id="compare-result">
+        <div class="empty">Upload your CSV file first, then add symbols to compare.</div>
+      </div>
+    </section>
+
+    <!-- ================= ABOUT ================= -->
+    <section id="tab-about" class="view">
+      <div class="prose">
+        <h2>How the score is built &mdash; v2 (Growth Hybrid)</h2>
+        <p>
+          Every company is rated by five strategies, then combined into a weighted score from 0 to 100.
+          Compared to the original value-tilted stack, this version puts <strong>Growth</strong> at the center
+          and removes Deep Value entirely &mdash; so the engine no longer over-selects PSU banks, cyclicals,
+          and other &ldquo;cheap-but-stagnant&rdquo; names.
+        </p>
+        <table class="weights">
+          <thead><tr><th>Model</th><th>Philosophy</th><th>Weight</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Growth</strong></td><td>Earnings &amp; revenue compounding, ROE, reinvestment, sector tailwind</td><td><strong>45%</strong></td></tr>
+            <tr><td>Value Investing</td><td>Buffett &mdash; high ROE, low debt, durable margins</td><td>15%</td></tr>
+            <tr><td>GARP</td><td>Lynch &mdash; PEG ratio (PE / growth)</td><td>15%</td></tr>
+            <tr><td>DCF</td><td>Two-stage discounted cash flow</td><td>15%</td></tr>
+            <tr><td>Sector Strength</td><td>Tiered structural-growth score (NBFC/Fintech &rarr; PSU/Oil)</td><td>10%</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Inside the Growth Score (0&ndash;100)</h2>
+        <table class="weights">
+          <thead><tr><th>Sub-component</th><th>What it captures</th><th>Sub-weight</th></tr></thead>
+          <tbody>
+            <tr><td>Revenue CAGR</td><td>3&ndash;5 year top-line growth</td><td>30%</td></tr>
+            <tr><td>Profit CAGR</td><td>3&ndash;5 year earnings growth (penalised when below revenue CAGR)</td><td>30%</td></tr>
+            <tr><td>ROE</td><td>&lt;10% low &middot; 15&ndash;20% good &middot; &gt;20% excellent</td><td>15%</td></tr>
+            <tr><td>Reinvestment Rate</td><td>Capex / OCF &mdash; or 1 &minus; payout ratio as fallback</td><td>10%</td></tr>
+            <tr><td>Sector Growth</td><td>Tiered 0&ndash;10 score (Fintech 10 &rarr; PSU 3)</td><td>10%</td></tr>
+            <tr><td>Operating Leverage</td><td>Profit growth / Revenue growth &mdash; &gt;1.2 = strong margin expansion</td><td>5%</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Hard filters &mdash; what &ldquo;Filtered&rdquo; means</h2>
+        <p>
+          Before scoring, every company must clear a quality gate. If <em>any one</em> of these fails,
+          the recommendation is forced to <span class="badge avoid">Filtered</span> and the reasons are
+          listed in the detail view. This is the safety net that keeps value traps out of the rankings.
+        </p>
+        <table class="weights">
+          <thead><tr><th>Filter</th><th>Threshold</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Profit CAGR</td><td>&ge; 10%</td><td>Earnings must actually be growing</td></tr>
+            <tr><td>ROE</td><td>&ge; 12%</td><td>Capital is being deployed efficiently</td></tr>
+            <tr><td>Revenue Growth</td><td>&ge; 8%</td><td>Top line isn&rsquo;t stagnating</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          A "Filtered" stock isn&rsquo;t necessarily bad &mdash; it&rsquo;s just not a fit for a
+          growth-focused mandate. PSU banks, slow-growing utilities, and many cyclicals end up here.
+        </p>
+
+        <h2>GARP / PEG calibration</h2>
+        <ul>
+          <li>PEG &lt; 1.0 &rarr; <strong>excellent</strong> (90&ndash;100)</li>
+          <li>PEG 1.0&ndash;1.5 &rarr; acceptable (60&ndash;90)</li>
+          <li>PEG 1.5&ndash;2.0 &rarr; stretched (30&ndash;60)</li>
+          <li>PEG &gt; 2.0 &rarr; <strong>heavy penalty</strong> (drops to 0 fast)</li>
+        </ul>
+
+        <h2>Recommendation rules</h2>
+        <ul>
+          <li><span class="badge avoid">Filtered</span> &mdash; failed any hard quality filter (see above)</li>
+          <li><span class="badge buy-strong">Strong Buy</span> &mdash; final score &ge; 75 <em>and</em> Growth sub-score &ge; 70</li>
+          <li><span class="badge buy">Buy</span> &mdash; score 60&ndash;75</li>
+          <li><span class="badge hold">Hold</span> &mdash; score 45&ndash;60</li>
+          <li><span class="badge avoid">Avoid</span> &mdash; score &lt; 45</li>
+        </ul>
+
+        <h2>Quality flags</h2>
+        <p>For stocks with Growth Score &ge; 60, the engine adds a one-line badge:</p>
+        <ul>
+          <li><strong>High Growth + High Quality</strong> &mdash; ROE &ge; 18%, D/E &lt; 1.0, and a respectable Value or GARP score. Safer compounders.</li>
+          <li><strong>Growth but Risky</strong> &mdash; growth is there, but quality is weaker (high leverage, low ROE, or stretched valuation). Treat with care.</li>
+        </ul>
+
+        <h2>Sector tiers used by the engine</h2>
+        <table class="weights">
+          <thead><tr><th>Tier</th><th>Examples</th><th>Score (0&ndash;10)</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>NBFC, Fintech, Digital, SaaS, Internet</td><td>9&ndash;10</td></tr>
+            <tr><td>2</td><td>IT services, Pharma, Specialty Chemicals, Renewable, EV</td><td>7&ndash;8</td></tr>
+            <tr><td>3</td><td>FMCG, Financial Services, Private Banks</td><td>6&ndash;7</td></tr>
+            <tr><td>4</td><td>Industrials, Capital Goods, Auto, Real Estate</td><td>4&ndash;5</td></tr>
+            <tr><td>5</td><td>PSU, Oil &amp; Gas, Metals, Utilities, Mining</td><td>3&ndash;4</td></tr>
+          </tbody>
+        </table>
+
+        <h2>What data do I need?</h2>
+        <table class="weights">
+          <thead><tr><th>Field</th><th>What it is</th><th>Where to find it</th></tr></thead>
+          <tbody>
+            <tr><td>current_price</td><td>Today's stock price</td><td>NSE / BSE / Google Finance</td></tr>
+            <tr><td>pe_ratio</td><td>Price / Earnings</td><td>Screener.in, Moneycontrol</td></tr>
+            <tr><td>pb_ratio</td><td>Price / Book Value</td><td>Screener.in, Moneycontrol</td></tr>
+            <tr><td>roe</td><td>Return on Equity (%)</td><td>Screener.in (annual report)</td></tr>
+            <tr><td>growth_rate</td><td>Earnings growth proxy (%) &mdash; used when CAGRs missing</td><td>Analyst estimates or past CAGR</td></tr>
+            <tr><td>revenue_cagr</td><td>3&ndash;5y revenue CAGR (%)</td><td>Optional &mdash; improves Growth scoring</td></tr>
+            <tr><td>profit_cagr</td><td>3&ndash;5y profit CAGR (%)</td><td>Optional &mdash; improves Growth scoring</td></tr>
+            <tr><td>payout_ratio</td><td>Dividend payout (0&ndash;1)</td><td>Optional &mdash; used as reinvestment proxy</td></tr>
+            <tr><td>equity</td><td>Shareholders' equity (Cr)</td><td>Balance sheet</td></tr>
+            <tr><td>debt</td><td>Total debt (Cr)</td><td>Balance sheet</td></tr>
+            <tr><td>profit</td><td>Net profit / PAT (Cr)</td><td>Income statement</td></tr>
+            <tr><td>cash_flow</td><td>Free cash flow per share</td><td>Optional &mdash; improves DCF accuracy</td></tr>
+            <tr><td>sector</td><td>e.g. IT, Pharma, FMCG, Financial Services</td><td>Used by sector tier mapping</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">This is an analytical tool, not investment advice. Always do your own research.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= DETAIL DRAWER ================= -->
+  <aside id="drawer" class="drawer hidden">
+    <div class="drawer-inner">
+      <button id="drawer-close" class="drawer-close">&times;</button>
+      <div id="drawer-content"></div>
+    </div>
+  </aside>
+  <div id="overlay" class="overlay hidden"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
