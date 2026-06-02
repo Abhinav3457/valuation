@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: stock-valuation
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python dashboard.py
+    envVars:
+      - key: RENDER
+        value: "true"
+      - key: PYTHON_VERSION
+        value: "3.10"

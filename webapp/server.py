@@ -6,6 +6,7 @@ Stdlib HTTP server — stock valuation dashboard.
 """
 
 import json
+import os
 import sys
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -408,7 +409,13 @@ def _background_fetch(symbols):
             _save_session()
 
 
-def serve(host="127.0.0.1", port=8000):
+def serve(host=None, port=None):
+    # Render / cloud deployment: use env vars, default to 0.0.0.0
+    # Local: default to 127.0.0.1:8000
+    if host is None:
+        host = os.environ.get("HOST", "0.0.0.0" if os.environ.get("RENDER") else "127.0.0.1")
+    if port is None:
+        port = int(os.environ.get("PORT", "8000"))
     _load_session()
     server = HTTPServer((host, port), DashboardHandler)
     url = f"http://{host}:{port}"
@@ -424,7 +431,7 @@ def serve(host="127.0.0.1", port=8000):
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser()
-    p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--host", default=None)
+    p.add_argument("--port", type=int, default=None)
     args = p.parse_args()
     serve(args.host, args.port)
