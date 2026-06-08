@@ -105,7 +105,7 @@ class YFinanceSource:
     def fetch_many(
         self,
         symbols: Iterable[str],
-        max_workers: int = 8,
+        max_workers: int = 1,
         force: bool = False,
         progress=None,
     ) -> List[Company]:
@@ -154,7 +154,12 @@ class YFinanceSource:
         Hit Yahoo for one ticker and return its raw `.info` dict.
         Returns None when Yahoo has no usable record.
         """
-        ticker = yf.Ticker(self._yf_symbol(symbol))
+        import requests
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        })
+        ticker = yf.Ticker(self._yf_symbol(symbol), session=session)
         try:
             info = ticker.info
         except Exception as e:
