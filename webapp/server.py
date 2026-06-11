@@ -123,7 +123,10 @@ HDFC Bank,HDFCBANK,Financial Services,1520.00,18.5,2.7,16.5,16.0,280000,60000,22
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
-        return
+        # Only log non-200 responses so Render logs stay clean
+        # but we can still diagnose 404s and errors.
+        if args and args[0] and str(args[0]).startswith("4"):
+            super().log_message(fmt, *args)
 
     def _send_json(self, payload, code=200):
         body = json.dumps(payload).encode("utf-8")
@@ -161,6 +164,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return self._send_static("index.html")
         if path in ("/style.css", "/app.js"):
             return self._send_static(path.lstrip("/"))
+
+        # Browsers always request /favicon.ico automatically.
+        # Return 204 No Content to avoid polluting logs.
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
 
         # Download blank CSV template
         if path == "/api/template":
