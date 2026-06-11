@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import threading
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -370,9 +371,24 @@ def _background_fetch(symbols):
     loaded = 0
     failed_symbols = []
 
+    # Reduce concurrency on cloud (Render free tier) to avoid
+    # rate-limiting from Yahoo Finance. 4 workers + small delay
+    # between batches gives a good balance.
+    max_workers = 4
+    batch_size = 4
     try:
-        with ThreadPoolExecutor(max_workers=8) as ex:
-            future_to_sym = {ex.submit(source.fetch, s): s for s in symbols}
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            future_to_sym = {}
+            # Submit in small batches with a delay between each batch
+            # to avoid triggering Yahoo Finance rate limits.
+            for i in range(0, len(symbols), batch_size):
+                batch = symbols[i:i + batch_size]
+                for s in batch:
+                    future = ex.submit(source.fetch, s)
+                    future_to_sym[future] = s
+                # Small delay between batches to be gentle on Yahoo
+                if i + batch_size < len(symbols):
+                    time.sleep(0.5)
             for fut in as_completed(future_to_sym):
                 sym = future_to_sym[fut]
                 done += 1

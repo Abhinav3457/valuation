@@ -1,3 +1,10 @@
 # Stock Valuation Dashboard — production dependencies
 # yfinance is used for live Yahoo Finance data in the dashboard UI
-yfinance>=0.2.40,<1.0
+yfinance>=0.2.40
+
+# Explicit yfinance dependencies — required on cloud deployments (Render)
+lxml>=4.9,<6.0
+html5lib>=1.1,<2.0
+requests>=2.28,<3.0
+pandas>=1.5,<3.0
+numpy>=1.23,<2.0

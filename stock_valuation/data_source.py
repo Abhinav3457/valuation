@@ -46,9 +46,56 @@ CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "cache"
 # valuation purposes daily refresh is more than enough.
 CACHE_TTL_SECONDS = 24 * 3600
 
+# Realistic browser User-Agent to avoid Yahoo Finance blocking cloud IPs.
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/125.0.0.0 Safari/537.36"
+)
+
 
 class LiveDataError(RuntimeError):
     """Raised when live data cannot be fetched and there's no fallback."""
+
+
+# ---------------------------------------------------------------------------
+# Session setup — retry adapter + realistic User-Agent
+# ---------------------------------------------------------------------------
+def _setup_yfinance_session() -> None:
+    """
+    Configure yfinance's shared requests session with:
+      - Realistic browser User-Agent
+      - Retry adapter (3 retries, backoff, handles 429/5xx)
+      - 30-second timeouts
+
+    This must be called once before any yfinance operations. Yahoo
+    Finance frequently throttles or blocks requests from cloud IPs;
+    a proper User-Agent and retry behaviour reduces failures.
+    """
+    if not YFINANCE_AVAILABLE:
+        return
+    try:
+        session = yf.shared._session
+        session.headers.update({"User-Agent": _USER_AGENT})
+
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+    except Exception as exc:
+        log.debug("Failed to configure yfinance session: %s", exc)
+
+
+# Apply on module import so every YFinanceSource instance benefits.
+_setup_yfinance_session()
 
 
 # ---------------------------------------------------------------------------
