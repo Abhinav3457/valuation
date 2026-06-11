@@ -328,6 +328,28 @@ async function sendToServer(rows, fileName) {
   }
 }
 
+// ===========================================================
+// Option C: Load Sample Data
+// ===========================================================
+$("#btn-load-sample").addEventListener("click", async () => {
+  const btn = $("#btn-load-sample");
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  try {
+    const resp = await api("/api/load-sample");
+    state.hasData = resp.loaded > 0;
+    showUploadStatus(resp.loaded, "Sample data", []);
+    if (state.hasData) {
+      state.results = await api("/api/analyze-all");
+    }
+  } catch (e) {
+    alert("Failed to load sample data: " + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Load Sample Companies";
+  }
+});
+
 // "View Results" button — switches to browse tab
 $("#btn-view-results").addEventListener("click", () => {
   // Activate browse tab

@@ -27,6 +27,9 @@ CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "cache"
 SESSION_PATH = Path(__file__).resolve().parent.parent / "data" / "session.json"
 ANALYZER = StockAnalyzer()
 
+# Path to sample data for fallback when yfinance is unavailable on cloud.
+SAMPLE_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "sample_companies.json"
+
 # In-memory store. Loaded from SESSION_PATH on startup so the user's
 # last session survives a server restart. Repopulated whenever the
 # user uploads a CSV or clicks "Fetch".
@@ -188,7 +191,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/meta":
             session_age = None
             if SESSION_PATH.is_file():
-                import time
                 session_age = int(time.time() - SESSION_PATH.stat().st_mtime)
             return self._send_json({
                 "count": len(UPLOADED),
@@ -262,6 +264,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # Fetch progress (polled by UI during background fetch)
         if path == "/api/fetch-status":
             return self._send_json(FETCH_STATE)
+
+        # Load sample companies from the bundled JSON file
+        if path == "/api/load-sample":
+            count = _load_sample_companies()
+            if count > 0:
+                return self._send_json({"loaded": count})
+            return self._send_json({"error": "No sample data found"}, 404)
 
         # Trigger NIFTY 50 fetch from Yahoo Finance
         # ?limit=N to fetch only the first N symbols (default: all 50)
@@ -434,6 +443,49 @@ def _background_fetch(symbols):
         if UPLOADED:
             _save_session()
 
+def _load_sample_companies() -> int:
+    """
+    Load the bundled sample companies from data/sample_companies.json
+    into UPLOADED so the user sees data immediately without needing
+    yfinance. Returns the number of companies loaded.
+    """
+    global UPLOADED
+    try:
+        if not SAMPLE_DATA_PATH.is_file():
+            print("  No sample data file found at", SAMPLE_DATA_PATH, file=sys.stderr)
+            return 0
+        data = json.loads(SAMPLE_DATA_PATH.read_text())
+        loaded = {}
+        for d in data:
+            try:
+                c = Company(**{
+                    "name": str(d.get("name", "?")),
+                    "symbol": str(d.get("symbol", "?")).upper().strip(),
+                    "sector": d.get("sector"),
+                    "revenue": float(d.get("revenue", 0)),
+                    "profit": float(d.get("profit", 0)),
+                    "debt": float(d.get("debt", 0)),
+                    "equity": float(d.get("equity", 1)),
+                    "pe_ratio": float(d.get("pe_ratio", 0)),
+                    "pb_ratio": float(d.get("pb_ratio", 0)),
+                    "roe": float(d.get("roe", 0)),
+                    "growth_rate": float(d.get("growth_rate", 0)),
+                    "current_price": float(d.get("current_price", 0)),
+                    "cash_flow": d.get("cash_flow"),
+                    "shares_outstanding": d.get("shares_outstanding"),
+                })
+                loaded[c.symbol] = c
+            except Exception as e:
+                print(f"  Skipping sample row: {e}", file=sys.stderr)
+        if loaded:
+            UPLOADED = loaded
+            _save_session()
+            print(f"  Loaded {len(loaded)} sample companies.")
+        return len(loaded)
+    except Exception as e:
+        print(f"  Error loading sample data: {e}", file=sys.stderr)
+        return 0
+
 
 def serve(host=None, port=None):
     # Render / cloud deployment: use env vars, default to 0.0.0.0
@@ -443,6 +495,12 @@ def serve(host=None, port=None):
     if port is None:
         port = int(os.environ.get("PORT", "8000"))
     _load_session()
+
+    # On Render / cloud: pre-load sample data so the dashboard is
+    # usable immediately even if yfinance can't fetch live data.
+    if os.environ.get("RENDER") and not UPLOADED:
+        _load_sample_companies()
+
     server = HTTPServer((host, port), DashboardHandler)
     url = f"http://{host}:{port}"
     print(f"\nStock Valuation Dashboard running at {url}")
